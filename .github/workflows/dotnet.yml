@@ -31,4 +31,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: AmeisenBotX Application Files
-        path: AmeisenBotX\AmeisenBotX\bin\Debug\net6.0-windows
+        path: AmeisenBotX\bin\Debug\net6.0-windows
