@@ -29,13 +29,11 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
             GetEndObject = end;
 
             _questObjectivesInit = objectives;
-
-            ActionEvent = new(TimeSpan.FromMilliseconds(250));
         }
 
         public bool Accepted { get; set; }
 
-        public TimegatedEvent ActionEvent { get; }
+        public TimegatedEvent ActionEvent { get; } = new(TimeSpan.FromMilliseconds(250));
 
         public bool ActionToggle { get; set; }
 

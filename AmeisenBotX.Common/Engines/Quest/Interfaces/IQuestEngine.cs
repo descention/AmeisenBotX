@@ -1,9 +1,10 @@
 ﻿using AmeisenBotX.Common;
+using System;
 using System.Collections.Generic;
 
 namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
 {
-    public interface IQuestEngine
+    public interface IQuestEngine : IDisposable
     {
         AmeisenBotInterfaces Bot { get; set; }
 

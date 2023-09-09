@@ -12,7 +12,7 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
             Objectives = objectives;
         }
 
-        public bool Accepted => true;
+        public bool Accepted { get; set; } = true;
 
         public bool Finished => Objectives != null && Objectives.All(e => e.Finished);
 

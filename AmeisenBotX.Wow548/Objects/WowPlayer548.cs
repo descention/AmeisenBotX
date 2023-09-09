@@ -105,7 +105,36 @@ namespace AmeisenBotX.Wow548.Objects
         {
             base.Update();
 
-            var player = GetPlayerDescriptor();
+            var obj = GetPlayerDescriptor();
+
+            questlogEntries = new QuestlogEntry[]
+            {
+                obj.QuestlogEntry1,
+                obj.QuestlogEntry2,
+                obj.QuestlogEntry3,
+                obj.QuestlogEntry4,
+                obj.QuestlogEntry5,
+                obj.QuestlogEntry6,
+                obj.QuestlogEntry7,
+                obj.QuestlogEntry8,
+                obj.QuestlogEntry9,
+                obj.QuestlogEntry10,
+                obj.QuestlogEntry11,
+                obj.QuestlogEntry12,
+                obj.QuestlogEntry13,
+                obj.QuestlogEntry14,
+                obj.QuestlogEntry15,
+                obj.QuestlogEntry16,
+                obj.QuestlogEntry17,
+                obj.QuestlogEntry18,
+                obj.QuestlogEntry19,
+                obj.QuestlogEntry20,
+                obj.QuestlogEntry21,
+                obj.QuestlogEntry22,
+                obj.QuestlogEntry23,
+                obj.QuestlogEntry24,
+                obj.QuestlogEntry25,
+            }.Where(t => t.Id > 0);
         }
 
         protected WowPlayerDescriptor548 GetPlayerDescriptor()

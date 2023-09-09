@@ -555,7 +555,7 @@ namespace AmeisenBotX.Memory
             static IntPtr GetMainThreadHandle(int processId)
             {
                 Process process = Process.GetProcessById(processId);
-                ProcessThread primaryThread = process.Threads.Cast<ProcessThread>().OrderBy(t => t.StartTime).FirstOrDefault();
+                ProcessThread primaryThread = process?.Threads?.Cast<ProcessThread>()?.OrderBy(t => t.StartTime)?.FirstOrDefault();
 
                 if (primaryThread != null)
                 {

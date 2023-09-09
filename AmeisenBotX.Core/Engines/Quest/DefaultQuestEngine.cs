@@ -15,13 +15,23 @@ namespace AmeisenBotX.Core.Engines.Quest
 
             Profiles = new List<IQuestProfile>()
             {
-                new DeathknightStartAreaQuestProfile(Bot),
-                new X5Horde1To80Profile(Bot),
-                new Horde1To60GrinderProfile(Bot)
+                new DeathknightStartAreaQuestProfile(Bot){ Engine = this },
+                new X5Horde1To80Profile(Bot){ Engine = this },
+                new Horde1To60GrinderProfile(Bot){ Engine = this }
             };
 
             CompletedQuests = new();
             QueryCompletedQuestsEvent = new(TimeSpan.FromSeconds(2));
+        }
+
+        public void Dispose()
+        {
+            UnregisterEvent("QUEST_ACCEPTED", OnQuestAccepted);
+            UnregisterEvent("QUEST_POI_UPDATE", OnQuestPoiUpdate);
+            UnregisterEvent("QUEST_QUERY_COMPLETE", OnGetQuestsCompleted);
+            UnregisterEvent("GOSSIP_SHOW", OnGossipShow);
+            UnregisterEvent("QUEST_GREETING", OnQuestGreeting);
+            UnregisterEvent("QUEST_PROGRESS", OnQuestProgress);
         }
 
         public List<int> CompletedQuests { get; private set; }
@@ -70,7 +80,7 @@ namespace AmeisenBotX.Core.Engines.Quest
             // loop questlog
             
             // get poi icons
-            // Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TableConcat({{QuestPOIGetIconInfo({0})}})"), out string result);
+            // Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TupleToTable({{QuestPOIGetIconInfo({0})}})"), out string result);
 
             // get objective updates
 
@@ -85,13 +95,21 @@ namespace AmeisenBotX.Core.Engines.Quest
             }
         }
 
+        private void UnregisterEvent(string eventName, Action<long, List<string>> action)
+        {
+            if (!Bot.Wow.Events.Events.Any(t => t.Key == eventName))
+            {
+                Bot.Wow.Events.Unsubscribe(eventName, action);
+            }
+        }
+
         private void OnQuestAccepted(long arg1, List<string> list)
         {
 
             var questIndex = int.Parse(list.First());
             var questId = int.Parse(list.Skip(1).First());
-            Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=\"\";TableConcat=function (t1,t2) local t = \"\"; for k,v in ipairs(t1) do t = t .. tostring(v) .. \";\" end; t = strsub(t, 0, strlen(t)-1); return t; end;"), out _);
-            // Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TableConcat({{QuestPOIGetIconInfo({questId})}})"), out string result);
+            Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=\"\";TupleToTable=function (t1,t2) local t = \"\"; for k,v in ipairs(t1) do t = t .. tostring(v) .. \";\" end; t = strsub(t, 0, strlen(t)-1); return t; end;"), out _);
+            // Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TupleToTable({{QuestPOIGetIconInfo({questId})}})"), out string result);
             //GetQuestLogTitle(questLogIndex)
             GetQuestLogTitle(questIndex);
 
@@ -101,7 +119,7 @@ namespace AmeisenBotX.Core.Engines.Quest
             {
                 for(int objectiveIndex = 1; objectiveIndex <= objectiveCount; objectiveIndex++)
                 {
-                    Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TableConcat({{GetQuestLogLeaderBoard({objectiveIndex},{questIndex})}})"), out string objective);
+                    Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TupleToTable({{GetQuestLogLeaderBoard({objectiveIndex},{questIndex})}})"), out string objective);
 
                     var objectiveParts = objective.Split(';');
                     var description = objectiveParts.First();
@@ -130,7 +148,7 @@ namespace AmeisenBotX.Core.Engines.Quest
                 }
             }
             
-            // Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TableConcat({{QuestPOIGetIconInfo({questId})}})"), out string result);
+            // Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TupleToTable({{QuestPOIGetIconInfo({questId})}})"), out string result);
         }
 
         public void Execute()
@@ -227,7 +245,7 @@ namespace AmeisenBotX.Core.Engines.Quest
 
         private void GetQuestLogTitle(int questIndex)
         {
-            Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TableConcat({{GetQuestLogTitle({questIndex})}})"), out string result);
+            Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua($"{{v:0}}=TupleToTable({{GetQuestLogTitle({questIndex})}})"), out string result);
             var split = result.Split(';');
 
         }

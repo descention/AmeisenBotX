@@ -236,7 +236,7 @@ namespace AmeisenBotX.Core
                 SetupRconClient();
             }
 
-            LoadPlugins();
+            LoadQuestPlugins();
         }
 
         /// <summary>
@@ -590,7 +590,7 @@ namespace AmeisenBotX.Core
 
         private void InitQuestProfiles()
         {
-            QuestEngine = new DefaultQuestEngine(Bot);
+            SetQuestProfile();
         }
 
         private void LoadCustomCombatClass()
@@ -645,11 +645,29 @@ namespace AmeisenBotX.Core
             Bot.Battleground = LoadClassByName(BattlegroundEngines, Config.BattlegroundEngine);
             Bot.Grinding.Profile = LoadClassByName(GrindingProfiles, Config.GrindingProfile);
             Bot.Jobs.Profile = LoadClassByName(JobProfiles, Config.JobProfile);
-            Bot.Quest.SelectedProfile = LoadClassByName(QuestProfiles, Config.QuestProfile);
+
+            SetQuestProfile();
         }
 
-        private void LoadPlugins()
+        public void SetQuestProfile()
         {
+            if (!QuestEnginesAvailable.Any())
+                LoadQuestPlugins();
+
+            var selectedProfile = LoadClassByName(QuestProfiles, Config.QuestProfile);
+            Bot.Quest = selectedProfile?.Engine ?? new DefaultQuestEngine(Bot);
+
+            foreach (var engine in QuestEnginesAvailable.Except(new[] { Bot.Quest }))
+            {
+                engine.Dispose();
+            }
+
+            Bot.Quest.SelectedProfile = selectedProfile;
+        }
+
+        private void LoadQuestPlugins()
+        {
+            QuestEnginesAvailable.Clear();
             var pluginDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AmeisenBotX", "Plugins");
 
             // Load types from the executing assembly
@@ -692,10 +710,10 @@ namespace AmeisenBotX.Core
                         // This assumes the implementation of IPlugin has a parameterless constructor
                         Debug.WriteLine($"Found QuestEngine from plugin: {pluginType.FullName}");
                         var engine = (IQuestEngine)Activator.CreateInstance(pluginType, Bot);
-                        //engine.Bot = Bot;
                         QuestEnginesAvailable.Add(engine);
                     }
-                }catch 
+                }
+                catch
                 {
                     loader.Dispose();
                 }

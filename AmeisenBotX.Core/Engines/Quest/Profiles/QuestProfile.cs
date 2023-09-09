@@ -16,6 +16,8 @@ namespace AmeisenBotX.Core.Engines.Quest.Profiles
 
         public string Name { get; init; }
 
+        public IQuestEngine Engine { get; init; }
+
         public override string ToString()
         {
             return Name;
