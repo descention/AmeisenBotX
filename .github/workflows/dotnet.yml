@@ -2,7 +2,9 @@
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
 name: .NET
-
+env:
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  
 on:
   push:
     branches: [ "master" ]
@@ -23,11 +25,10 @@ jobs:
         dotnet-version: 6.0.x
     - uses: actions/cache@v3
       with:
-        path: ~/.nuget/packages
-        # Look to see if there is a cache hit for the corresponding requirements file
+        path: ${{ github.workspace }}/.nuget/packages
         key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
         restore-keys: |
-          ${{ runner.os }}-nuget
+          ${{ runner.os }}-nuget-
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
