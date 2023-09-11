@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -50,7 +51,7 @@ namespace AmeisenBotX.Core.Managers.Character.Inventory
             });
         }
 
-        public static List<WowBasicItem> ParseItemList(string json)
+        public static ICollection<WowBasicItem> ParseItemList(string json)
         {
             return JsonSerializer.Deserialize<List<WowBasicItem>>(json, new JsonSerializerOptions
             {

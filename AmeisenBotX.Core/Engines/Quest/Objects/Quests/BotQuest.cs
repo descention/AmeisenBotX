@@ -10,8 +10,6 @@ using System.Threading;
 
 namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
 {
-    public delegate (IWowObject, Vector3) BotQuestGetPosition();
-
     public class BotQuest : IBotQuest
     {
         private Func<ICollection<IQuestObjective>> _questObjectivesInit = default;
@@ -37,7 +35,7 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
 
         public bool ActionToggle { get; set; }
 
-        public bool Finished => (Objectives != null && Objectives.All(e => e.Finished)) || Progress == 100.0;
+        public bool Finished => (Objectives != null && Objectives.All(e => e.Finished)) || Math.Min(Progress,100.0) == 100.0;
 
         public BotQuestGetPosition GetEndObject { get; set; }
 
@@ -183,7 +181,7 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
                                     if (Bot.Wow.GetQuestLogChoiceItemLink(i, out string itemLink))
                                     {
                                         string itemJson = Bot.Wow.GetItemByNameOrLink(itemLink);
-                                        WowBasicItem item = ItemFactory.BuildSpecificItem(ItemFactory.ParseItem(itemJson));
+                                        IWowInventoryItem item = ItemFactory.BuildSpecificItem(ItemFactory.ParseItem(itemJson));
 
                                         if (item == null)
                                         {

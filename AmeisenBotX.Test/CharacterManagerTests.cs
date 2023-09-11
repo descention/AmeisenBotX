@@ -3,6 +3,7 @@ using AmeisenBotX.Core.Managers.Character.Inventory.Objects;
 using AmeisenBotX.Wow.Objects.Enums;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace AmeisenBotX.Test
 {
@@ -88,13 +89,13 @@ namespace AmeisenBotX.Test
         [TestMethod]
         public void TestItemListParsing()
         {
-            List<WowBasicItem> items = ItemFactory.ParseItemList(testItemList);
+            var items = ItemFactory.ParseItemList(testItemList);
             Assert.IsInstanceOfType(items, typeof(List<WowBasicItem>));
             Assert.IsTrue(items.Count == 3);
 
-            WowBasicItem item0 = ItemFactory.BuildSpecificItem(items[0]);
-            WowBasicItem item1 = ItemFactory.BuildSpecificItem(items[1]);
-            WowBasicItem item2 = ItemFactory.BuildSpecificItem(items[2]);
+            WowBasicItem item0 = ItemFactory.BuildSpecificItem(items.ElementAt(0));
+            WowBasicItem item1 = ItemFactory.BuildSpecificItem(items.ElementAt(1));
+            WowBasicItem item2 = ItemFactory.BuildSpecificItem(items.ElementAt(2));
 
             Assert.IsInstanceOfType(item0, typeof(WowMiscellaneousItem));
             Assert.IsInstanceOfType(item1, typeof(WowArmor));

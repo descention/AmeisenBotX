@@ -1,4 +1,5 @@
-﻿using AmeisenBotX.Core.Engines.Quest.Objects.Objectives;
+﻿using AmeisenBotX.Common.Utils;
+using AmeisenBotX.Core.Engines.Quest.Objects.Objectives;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -23,6 +24,12 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Quests
         public List<IQuestObjective> Objectives { get; }
 
         public bool Returned => Finished;
+
+        public TimegatedEvent ActionEvent => throw new NotImplementedException();
+
+        public BotQuestGetPosition GetEndObject { get; set; }
+        public BotQuestGetPosition GetStartObject { get; set; }
+        bool IBotQuest.Returned { get; set; }
 
         public void AcceptQuest()
         {

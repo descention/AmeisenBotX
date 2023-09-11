@@ -14,6 +14,8 @@ namespace AmeisenBotX.Plugins.Questing.Database
 {
     internal class BotQuest : IBotQuest
     {
+        private bool? finished;
+
         public BotQuest()
         {
 
@@ -23,8 +25,10 @@ namespace AmeisenBotX.Plugins.Questing.Database
 
         public TimegatedEvent ActionEvent { get; } = new(TimeSpan.FromMilliseconds(250));
 
-        public bool Finished { get; set; }
-
+        public bool Finished {
+            get => finished ?? (Objectives != null && (Objectives.All(e => e.Finished) || !Objectives.Any()));
+            set => finished = value;
+        }
         public int Id { get; init; } = -1;
 
         public string Name { get; init; } = "Default Title";

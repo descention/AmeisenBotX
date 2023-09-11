@@ -70,7 +70,7 @@ namespace AmeisenBotX.Core.Managers.Character.Inventory
 
             try
             {
-                List<WowBasicItem> rawEquipment = ItemFactory.ParseItemList(resultJson);
+                var rawEquipment = ItemFactory.ParseItemList(resultJson);
 
                 if (rawEquipment != null && rawEquipment.Any())
                 {

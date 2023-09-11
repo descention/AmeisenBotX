@@ -795,7 +795,7 @@ namespace AmeisenBotX.Core
                 string itemLink = Bot.Wow.GetLootRollItemLink(rollId);
                 string itemJson = Bot.Wow.GetItemByNameOrLink(itemLink);
 
-                WowBasicItem item = ItemFactory.BuildSpecificItem(ItemFactory.ParseItem(itemJson));
+                IWowInventoryItem item = ItemFactory.BuildSpecificItem(ItemFactory.ParseItem(itemJson));
 
                 if (item.Name == "0")
                 {

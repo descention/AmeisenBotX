@@ -1,5 +1,6 @@
 ﻿using AmeisenBotX.Core.Engines.Combat.Helpers;
 using AmeisenBotX.Core.Engines.Combat.Helpers.Aura.Objects;
+using AmeisenBotX.Core.Engines.Movement.Enums;
 using AmeisenBotX.Core.Managers.Character.Comparators;
 using AmeisenBotX.Core.Managers.Character.Talents.Objects;
 using AmeisenBotX.Wow.Objects;
@@ -104,6 +105,28 @@ namespace AmeisenBotX.Core.Engines.Combat.Classes.Jannis.Wotlk335a
         public override WowVersion WowVersion => WowVersion.WotLK335a;
 
         private DateTime LastFearAttempt { get; set; }
+
+        public new void AttackTarget()
+        {
+            if (Bot.Target == null)
+            {
+                return;
+            }
+
+            if (Bot.Player.DistanceTo(Bot.Target) < 40)
+            {
+                Bot.Wow.StopClickToMove();
+                Bot.Movement.Reset();
+                if (TryCastSpell(Warlock335a.ShadowBolt, Bot.Wow.TargetGuid, true))
+                {
+                    return;
+                }
+            }
+            else if (!Bot.Tactic.PreventMovement)
+            {
+                Bot.Movement.SetMovementAction(MovementAction.Move, Bot.Target.Position);
+            }
+        }
 
         public override void Execute()
         {

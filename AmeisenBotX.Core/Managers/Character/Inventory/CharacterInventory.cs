@@ -103,7 +103,7 @@ namespace AmeisenBotX.Core.Managers.Character.Inventory
 
             try
             {
-                List<WowBasicItem> basicItems = ItemFactory.ParseItemList(resultJson);
+                var basicItems = ItemFactory.ParseItemList(resultJson);
 
                 if (basicItems is not { Count: > 0 })
                 {

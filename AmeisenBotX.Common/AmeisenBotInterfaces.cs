@@ -110,6 +110,15 @@ namespace AmeisenBotX.Common
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IWowUnit GetClosestQuestGiverByEntityId(Vector3 position, IEnumerable<int> entityIds, bool onlyQuestGivers = true)
+        {
+            return Objects.All.OfType<IWowUnit>()
+                .Where(e => !e.IsDead && (!onlyQuestGivers || e.IsQuestgiver) && entityIds.Contains(e.EntryId))
+                .OrderBy(e => e.Position.GetDistance(position))
+                .FirstOrDefault();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IWowUnit GetClosestQuestGiverByNpcId(Vector3 position, IEnumerable<int> npcIds, bool onlyQuestGivers = true)
         {
             return Objects.All.OfType<IWowUnit>()
@@ -132,6 +141,15 @@ namespace AmeisenBotX.Common
         {
             return Objects.All.OfType<IWowUnit>()
                 .Where(e => !e.IsDead && e.IsVendor && Db.GetReaction(Player, e) != WowUnitReaction.Hostile && e.EntryId == entryId)
+                .OrderBy(e => e.Position.GetDistance(Player.Position))
+                .FirstOrDefault();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IWowUnit GetClosestNpcByEntryId(int entryId)
+        {
+            return Objects.All.OfType<IWowUnit>()
+                .Where(e => !e.IsDead && Db.GetReaction(Player, e) != WowUnitReaction.Hostile && e.EntryId == entryId)
                 .OrderBy(e => e.Position.GetDistance(Player.Position))
                 .FirstOrDefault();
         }

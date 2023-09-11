@@ -49,8 +49,6 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Objectives
             }
             else
             {
-                Bot.Wow.ClearTarget();
-
                 Unit = Bot.Objects.All
                     .OfType<IWowUnit>()
                     .Where(e => !e.IsDead && ObjectDisplayIds.Values.Contains(e.DisplayId))
@@ -61,6 +59,10 @@ namespace AmeisenBotX.Core.Engines.Quest.Objects.Objectives
 
             if (Unit != null)
             {
+                Bot.Wow.ChangeTarget(Unit.Guid);
+                Bot.CombatClass.AttackTarget();
+                return;
+
                 if (Unit.Position.GetDistance(Bot.Player.Position) < 3.0)
                 {
                     Bot.Wow.StopClickToMove();
