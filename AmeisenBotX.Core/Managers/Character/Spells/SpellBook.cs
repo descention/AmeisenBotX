@@ -34,7 +34,7 @@ namespace AmeisenBotX.Core.Managers.Character.Spells
 
         public bool IsSpellKnown(string spellname)
         {
-            return Spells != null && Spells.Any(e => string.Equals(e.Name, spellname, StringComparison.OrdinalIgnoreCase));
+            return Spells != null && Spells.Any(e => string.Equals(e.Name, spellname, StringComparison.OrdinalIgnoreCase) && e.Rank != "0");
         }
 
         public bool TryGetSpellByName(string spellname, out Spell spell)

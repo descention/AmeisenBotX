@@ -1220,7 +1220,8 @@ namespace AmeisenBotX.Core.Logic
             else if (Config.AutostartWow && File.Exists(Config.PathToWowExe))
             {
                 AmeisenLogger.I.Log("StartWow", "Starting WoW Process");
-                Process p = Bot.Memory.StartProcessNoActivate($"\"{Config.PathToWowExe}\" -windowed -d3d9", out IntPtr processHandle, out IntPtr mainThreadHandle);
+
+                Process p = Bot.Memory.StartProcessNoActivate($"\"{Config.PathToWowExe}\" -nosound -noautolaunch64bit -1024x768 -d3d9 -windowed", out IntPtr processHandle, out IntPtr mainThreadHandle);
                 p.WaitForInputIdle();
 
                 AmeisenLogger.I.Log("StartWow", $"Attaching XMemory to {p.ProcessName} ({p.Id})");

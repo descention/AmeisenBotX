@@ -17,6 +17,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Security.AccessControl;
 using System.Xml.Linq;
 
 namespace AmeisenBotX.Plugins.Questing.Database
@@ -37,7 +39,43 @@ namespace AmeisenBotX.Plugins.Questing.Database
             SelectedProfile = Profiles.FirstOrDefault();
 
             QueryEvent = new TimegatedEvent(TimeSpan.FromSeconds(30), PopulateProfile);
+
+            RegisterEvent("QUEST_PROGRESS", OnQuestProgress);
         }
+
+
+        public void Dispose()
+        {
+            UnregisterEvent("QUEST_PROGRESS", OnQuestProgress);
+        }
+
+        ~QuestingDatabaseEngine()
+        {
+            Dispose();
+        }
+
+        private void OnQuestProgress(long arg1, List<string> list)
+        {
+            
+        }
+
+        private void CombatLog_OnPartyKill(ulong sourceGuid, ulong npcGuid)
+        {
+            IWowUnit wowUnit = Bot.GetWowObjectByGuid<IWowUnit>(npcGuid);
+
+            if (wowUnit != null && (Bot.Player.Guid == sourceGuid || Bot.Objects.PartymemberGuids.Contains(sourceGuid)))
+            {
+                var killBasedObjectives = this.SelectedProfile.Quests
+                    .SelectMany(t => t.SelectMany(x => x.Objectives.OfType<BotQuestObjective>().Where(r => r.DbQuestObjective?.Type == 1)))
+                    .Where(t => t.DbQuestObjective?.ObjectId == wowUnit.EntryId);
+                foreach(var objective in killBasedObjectives)
+                {
+                    var tick = 100.0 / Math.Max(objective.DbQuestObjective?.Amount ?? 1, 1);
+                    objective.Progress += tick;
+                }
+            }
+        }
+
         internal IServiceProvider Services { get; init; }
 
         private WorldContext World => Services.GetService<WorldContext>();
@@ -342,30 +380,17 @@ namespace AmeisenBotX.Plugins.Questing.Database
                 {
                     DbQuestObjective = objective
                 };
-
-                qo.Action = () =>
+                
+                switch (objective.Type)
                 {
-                    // type 0 kill, type 1 gather
-                    switch (objective.Type)
-                    {
-                        case 1:
-                            // find source of objective
-                            var itemId = objective.ObjectId;
-
-                            var have = Bot.Character.Inventory.Items.Where(t => t.Id == itemId).Sum(t => t.Count);
-
-                            qo.Progress = Math.Round(have > 0 ? (have / objective.Amount) : 0.0, 2) * 100;
-                            if (qo.Finished)
-                                break;
-
-                            var creatureLoot = cache.GetOrCreate($"creatureloot-{itemId}", t => World.CreatureLootTemplates.Where(t => t.item == itemId).Select(t => t.entry));
-
-                            if (creatureLoot?.Any() == true)
-                                // go hunting
-                                test(qo, creatureLoot);
-                            break;
-                    }
-                };
+                    case 0:
+                        qo.Action = () => HuntTargets(qo, new[] { objective.ObjectId });
+                        
+                        break;
+                    case 1:
+                        qo.Action = () => HuntItems(qo);
+                        break;
+                }
 
                 questObjectives.Add(qo);
             }
@@ -398,6 +423,23 @@ namespace AmeisenBotX.Plugins.Questing.Database
             return botQuest;
         }
 
+        private void HuntItems(BotQuestObjective objective)
+        {
+            var itemId = objective.DbQuestObjective.ObjectId;
+
+            var have = Bot.Character.Inventory.Items.Where(t => t.Id == itemId).Sum(t => t.Count);
+
+            objective.Progress = Math.Round(have > 0 ? (have / objective.DbQuestObjective.Amount) : 0.0, 2) * 100;
+            if (objective.Finished || Bot.Player.IsCasting)
+                return;
+
+            var creatureLoot = cache.GetOrCreate($"creatureloot-{itemId}", t => World.CreatureLootTemplates.Where(t => t.item == itemId).Select(t => t.entry));
+
+            if (creatureLoot?.Any() == true)
+                // go hunting
+                HuntTargets(objective, creatureLoot);
+        }
+
         (IWowUnit Unit,Vector3 Location) GetQuestUnitLocation(int questId, IEnumerable<int> entryIds)
         {
             Vector3 backup = default;
@@ -419,11 +461,36 @@ namespace AmeisenBotX.Plugins.Questing.Database
             return (target, backup);
         }
 
-        void test(IQuestObjective objective, IEnumerable<int> targetEntryIds)
+        private void HuntTargets(BotQuestObjective objective, IEnumerable<int> targetEntryIds)
         {
+            var obj = objective.DbQuestObjective;
+            if (obj?.Type == 0)
+            { // objective is to kill
+                var gameQuest = Bot.Player.QuestlogEntries.Single(t => t.Id == obj.QuestId);
+                var progress = 0;
+                switch (obj.Index)
+                {
+                    case 0:
+                        progress = gameQuest.ProgressPartymember1;
+                        break;
+                    case 1:
+                        progress = gameQuest.ProgressPartymember2;
+                        break;
+                    case 2:
+                        progress = gameQuest.ProgressPartymember3;
+                        break;
+                    case 3:
+                        progress = gameQuest.ProgressPartymember4;
+                        break;
+                }
+
+                objective.Progress = Math.Round(progress / (double)obj.Amount, 2) * 100;
+            }
+
             if (objective.Finished || Bot.Player.IsCasting) { return; }
 
-            IWowUnit? Unit;
+            IWowUnit? Unit = null;
+            Vector3 backupLocation = default;
 
             if (Bot.Target != null
                 && !Bot.Target.IsDead
@@ -439,15 +506,28 @@ namespace AmeisenBotX.Plugins.Questing.Database
                 {
                     Unit = Bot.Objects.All
                         .OfType<IWowUnit>()
-                        .SingleOrDefault(t => t.Guid == guid);
+                        .SingleOrDefault(t => t.Guid == guid && !t.IsDead);
                 }
-                else
+                
+                if(Unit == null)
                 {
-                    Unit = Bot.Objects.All
+                    var potentialTargets = Bot.Objects.All
                         .OfType<IWowUnit>()
-                        .Where(e => !e.IsDead && targetEntryIds.Contains(e.EntryId))
+                        .Where(e => !e.IsDead && targetEntryIds.Contains(e.EntryId));
+
+                    Unit = potentialTargets
                         .OrderBy(e => e.Position.GetDistance(Bot.Player.Position))
                         .FirstOrDefault();
+
+                    if(Unit == null)
+                    { // check the DB
+                        backupLocation = cache.GetOrCreate("", c => World.Creatures
+                            .Where(t => targetEntryIds.Contains(t.id))
+                            .ToArray()
+                            .Select(t => new Vector3(t.position_x, t.position_y, t.position_z))
+                            .OrderBy(t => t.GetDistance(Bot.Player.Position))
+                            .FirstOrDefault());
+                    }
 
                     if(Unit != null)
                         cache.Set(cacheKey, Unit.Guid, DateTimeOffset.Now.AddSeconds(10));
@@ -458,25 +538,30 @@ namespace AmeisenBotX.Plugins.Questing.Database
             {
                 Bot.Wow.ChangeTarget(Unit.Guid);
                 Bot.CombatClass.AttackTarget();
-                return;
-
-                if (Unit.Position.GetDistance(Bot.Player.Position) < 3.0)
-                {
-                    Bot.Wow.StopClickToMove();
-                    Bot.Movement.Reset();
-                    Bot.Wow.InteractWithUnit(Unit);
-                }
-                else
-                {
-                    Bot.Movement.SetMovementAction(MovementAction.Move, Unit.Position);
-                }
-                Bot.CombatClass.AttackTarget();
+                
+            }
+            else if(backupLocation != default)
+            {
+                Bot.Movement.SetMovementAction(MovementAction.Move, backupLocation);
             }
         }
 
-        public void Dispose()
+        #region
+        private void RegisterEvent(string eventName, Action<long, List<string>> action)
         {
-            
+            if (!Bot.Wow.Events.Events.Any(t => t.Key == eventName))
+            {
+                Bot.Wow.Events.Subscribe(eventName, action);
+            }
         }
+
+        private void UnregisterEvent(string eventName, Action<long, List<string>> action)
+        {
+            if (!Bot.Wow.Events.Events.Any(t => t.Key == eventName))
+            {
+                Bot.Wow.Events.Unsubscribe(eventName, action);
+            }
+        }
+        #endregion
     }
 }

@@ -2,6 +2,7 @@
 using AmeisenBotX.Core.Engines.Combat.Helpers.Aura.Objects;
 using AmeisenBotX.Core.Engines.Movement.Enums;
 using AmeisenBotX.Core.Managers.Character.Comparators;
+using AmeisenBotX.Core.Managers.Character.Spells;
 using AmeisenBotX.Core.Managers.Character.Talents.Objects;
 using AmeisenBotX.Wow.Objects;
 using AmeisenBotX.Wow.Objects.Enums;
@@ -113,7 +114,7 @@ namespace AmeisenBotX.Core.Engines.Combat.Classes.Jannis.Wotlk335a
                 return;
             }
 
-            if (Bot.Player.DistanceTo(Bot.Target) < 40)
+            if (IsInRange(Bot.Character.SpellBook.GetSpellByName(Warlock335a.ShadowBolt), Bot.Target))
             {
                 Bot.Wow.StopClickToMove();
                 Bot.Movement.Reset();

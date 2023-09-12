@@ -667,6 +667,8 @@ namespace AmeisenBotX.Core
 
         private void LoadQuestPlugins()
         {
+            foreach (var engine in QuestEnginesAvailable)
+                engine.Dispose();
             QuestEnginesAvailable.Clear();
             var pluginDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AmeisenBotX", "Plugins");
 

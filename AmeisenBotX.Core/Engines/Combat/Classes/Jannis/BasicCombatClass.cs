@@ -370,7 +370,7 @@ namespace AmeisenBotX.Core.Engines.Combat.Classes.Jannis
 
                 bool isTargetMyself = guid == 0 || guid == Bot.Player.Guid;
                 Spell spell = Bot.Character.SpellBook.GetSpellByName(spellName);
-
+                
                 if (ValidateSpell(spell, target, currentResourceAmount, needsResource, isTargetMyself)
                     && (additionalValidation == null || additionalValidation()))
                 {
