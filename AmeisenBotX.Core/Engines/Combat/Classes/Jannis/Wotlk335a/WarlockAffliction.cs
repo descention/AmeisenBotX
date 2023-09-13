@@ -107,7 +107,7 @@ namespace AmeisenBotX.Core.Engines.Combat.Classes.Jannis.Wotlk335a
 
         private DateTime LastFearAttempt { get; set; }
 
-        public new void AttackTarget()
+        public override void AttackTarget()
         {
             if (Bot.Target == null)
             {

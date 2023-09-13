@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
@@ -8,12 +9,13 @@ using System.Threading.Tasks;
 
 namespace AmeisenBotX.Plugins.Questing.Database.Models
 {
-    [Keyless]
     [Table("creature")]
     public record DbCreature
     {
-        public int guid { get; set; }
+        [Key]
+        public ulong guid { get; set; }
         public int id { get; set; }
+        public int map { get; set; }
         public int spawnMask { get; set; }
         public int phaseId { get; set; }
         public int phaseGroup { get; set; }

@@ -18,6 +18,8 @@ namespace AmeisenBotX.Plugins.Questing.Database.Repository
         public DbSet<DbCreatureQuestEnder> CreatureQuestEnders { get; set; }
         public DbSet<DbCreatureLootTemplate> CreatureLootTemplates { get; set; }
 
+        public DbSet<DbGameObjectTemplate> GameObjectTemplates { get; set; }
+
         public DbSet<DbQuest> Quests { get; set; }
         public DbSet<DbQuestPoi> QuestPoi { get; set; }
         public DbSet<DbQuestPoiPoints> QuestPoiPoints { get; set; }
@@ -25,7 +27,10 @@ namespace AmeisenBotX.Plugins.Questing.Database.Repository
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-
+            modelBuilder.Entity<DbCreature>(entity =>
+            {
+                entity.HasKey(t => new { t.guid });
+            });
         }
     }
 }

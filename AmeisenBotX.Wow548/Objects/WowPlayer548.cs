@@ -14,7 +14,7 @@ namespace AmeisenBotX.Wow548.Objects
 
         private IEnumerable<VisibleItemEnchantment> itemEnchantments;
 
-        private IEnumerable<QuestlogEntry> questlogEntries;
+        private IEnumerable<QuestlogEntry> questlogEntries = new List<QuestlogEntry>();
 
         public int ComboPoints => Memory.Read(Memory.Offsets.ComboPoints, out byte comboPoints) ? comboPoints : 0;
 
@@ -135,6 +135,8 @@ namespace AmeisenBotX.Wow548.Objects
                 obj.QuestlogEntry24,
                 obj.QuestlogEntry25,
             }.Where(t => t.Id > 0);
+
+            
         }
 
         protected WowPlayerDescriptor548 GetPlayerDescriptor()
