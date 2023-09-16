@@ -235,8 +235,6 @@ namespace AmeisenBotX.Core
                 RconEvent = new(TimeSpan.FromMilliseconds(Config.RconInterval));
                 SetupRconClient();
             }
-
-            LoadQuestPlugins();
         }
 
         /// <summary>
@@ -330,8 +328,7 @@ namespace AmeisenBotX.Core
         /// </summary>
         public IEnumerable<IQuestProfile> QuestProfiles => QuestEnginesAvailable.SelectMany(t => t.Profiles);
         public ICollection<IQuestEngine> QuestEnginesAvailable { get; set; } = new HashSet<IQuestEngine>();
-        public IQuestEngine QuestEngine { get; private set; }
-
+        
         private TimegatedEvent BagUpdateEvent { get; set; }
 
         private int CurrentExecutionCount { get; set; }
@@ -645,7 +642,6 @@ namespace AmeisenBotX.Core
             Bot.Battleground = LoadClassByName(BattlegroundEngines, Config.BattlegroundEngine);
             Bot.Grinding.Profile = LoadClassByName(GrindingProfiles, Config.GrindingProfile);
             Bot.Jobs.Profile = LoadClassByName(JobProfiles, Config.JobProfile);
-
             SetQuestProfile();
         }
 
@@ -695,6 +691,36 @@ namespace AmeisenBotX.Core
                     var loader = PluginLoader.CreateFromAssemblyFile(
                         pluginDll,
                         sharedTypes: new[] { typeof(IQuestEngine) });
+
+                    loader.Reloaded += (s, e) =>
+                    {
+                        try
+                        {
+                            foreach (var pluginType in e.Loader
+                                .LoadDefaultAssembly()
+                                .GetTypes()
+                                .Where(t => typeof(IQuestEngine).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract))
+                            {
+                                // This assumes the implementation of IPlugin has a parameterless constructor
+                                Debug.WriteLine($"Found QuestEngine from plugin: {pluginType.FullName}");
+
+                                var loaded = QuestEnginesAvailable.Where(t => t.GetType().FullName == pluginType.FullName).ToArray();
+                                foreach(var  loadedType in loaded)
+                                {
+                                    QuestEnginesAvailable.Remove(loadedType);
+                                    loadedType.Dispose();
+                                }
+
+                                var engine = (IQuestEngine)Activator.CreateInstance(pluginType, Bot);
+                                QuestEnginesAvailable.Add(engine);
+                            }
+                        }
+                        catch
+                        {
+                            loader.Dispose();
+                        }
+                    };
+
                     loaders.Add(loader);
                 }
             }
@@ -721,6 +747,7 @@ namespace AmeisenBotX.Core
                 }
             }
         }
+
 
         private void OnBagChanged(long timestamp, List<string> args)
         {

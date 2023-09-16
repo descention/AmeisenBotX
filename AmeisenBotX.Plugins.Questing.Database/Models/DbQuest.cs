@@ -28,5 +28,6 @@ namespace AmeisenBotX.Plugins.Questing.Database.Models
         public string Title { get; set; }
         public string Objectives { get; set; }
         public string Details { get; set; }
+        public int PrevQuestId { get; set; }
     }
 }

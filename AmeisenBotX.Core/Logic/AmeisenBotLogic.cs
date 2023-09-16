@@ -404,7 +404,9 @@ namespace AmeisenBotX.Core.Logic
             switch (Mode)
             {
                 case BotMode.Questing:
+                    
                     Bot.Quest.Enter();
+                    
                     break;
 
                 default:

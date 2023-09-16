@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net6.0-windows</TargetFramework>
@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\AmeisenBotX.BehaviorTree\AmeisenBotX.BehaviorTree.csproj" />
     <ProjectReference Include="..\AmeisenBotX.Core\AmeisenBotX.Core.csproj" />
+    <ProjectReference Include="..\AmeisenBotX.Plugins.Questing.Database\AmeisenBotX.Plugins.Questing.Database.csproj" />
   </ItemGroup>
 
 </Project>

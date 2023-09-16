@@ -6,6 +6,7 @@ using AmeisenBotX.Core.Engines.Quest.Objects.Objectives;
 using AmeisenBotX.Core.Engines.Quest.Objects.Quests;
 using AmeisenBotX.Core.Managers.Character.Inventory;
 using AmeisenBotX.Core.Managers.Character.Inventory.Objects;
+using AmeisenBotX.Core.Objects;
 using AmeisenBotX.Plugins.Questing.Database.Models;
 using AmeisenBotX.Plugins.Questing.Database.Repository;
 using AmeisenBotX.Wow.Objects;
@@ -34,7 +35,7 @@ namespace AmeisenBotX.Plugins.Questing.Database
                 Profiles.Add(profile);
             }
 
-            SelectedProfile = Profiles.FirstOrDefault();
+            SelectedProfile = Profiles.First();
 
             QueryEvent = new TimegatedEvent(TimeSpan.FromSeconds(30), PopulateProfile);
             UpdateDatabase = new TimegatedEvent(TimeSpan.FromMinutes(2), PopulateDatabase);
@@ -57,23 +58,6 @@ namespace AmeisenBotX.Plugins.Questing.Database
         private void OnQuestProgress(long arg1, List<string> list)
         {
 
-        }
-
-        private void CombatLog_OnPartyKill(ulong sourceGuid, ulong npcGuid)
-        {
-            IWowUnit wowUnit = Bot.GetWowObjectByGuid<IWowUnit>(npcGuid);
-
-            if (wowUnit != null && (Bot.Player.Guid == sourceGuid || Bot.Objects.PartymemberGuids.Contains(sourceGuid)))
-            {
-                IEnumerable<BotQuestObjective> killBasedObjectives = SelectedProfile.Quests
-                    .SelectMany(t => t.SelectMany(x => x.Objectives.OfType<BotQuestObjective>().Where(r => r.DbQuestObjective?.Type == 1)))
-                    .Where(t => t.DbQuestObjective?.ObjectId == wowUnit.EntryId);
-                foreach (BotQuestObjective? objective in killBasedObjectives)
-                {
-                    double tick = 100.0 / Math.Max(objective.DbQuestObjective?.Amount ?? 1, 1);
-                    objective.Progress += tick;
-                }
-            }
         }
 
         internal IServiceProvider Services { get; init; }
@@ -228,6 +212,30 @@ namespace AmeisenBotX.Plugins.Questing.Database
                     return;
                 }
             }
+            else
+            {
+                var targetNewQuest = cache.GetOrCreate("newquest", t =>
+                {
+                    t.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+                    return GetNewQuest();
+                });
+                
+                if(Bot.GetClosestNpcByEntryId(targetNewQuest.NpcEntityId) is { } m && m != null)
+                {
+                    if(m.Position.GetDistance( Bot.Player.Position) <= 4.5)
+                    {
+                        RightClickQuestgiver(m);
+                    }
+                    else
+                    {
+                        Bot.Movement.SetMovementAction(MovementAction.Move, m.Position);
+                    }
+                }
+                else
+                {
+                    Bot.Movement.SetMovementAction(MovementAction.Move, targetNewQuest.Location);
+                }
+            }
         }
 
         private async void PopulateDatabase()
@@ -244,23 +252,23 @@ namespace AmeisenBotX.Plugins.Questing.Database
                     .ToListAsync();
 
                 seenNpcs.RemoveAll(t => creatureIdsWithKnownSpawnLocations.Contains(t.EntryId));
-
-                foreach(var unknownUnit in seenNpcs)
+                if (seenNpcs.Any())
                 {
-                    var creature = new DbCreature()
+                    var dbObj = seenNpcs.Select(unknownUnit => new DbCreature()
                     {
                         id = unknownUnit.EntryId,
-                        guid = unknownUnit.Guid,
+                        //guid = unknownUnit.Guid,
                         map = (int)Bot.Objects.MapId,
                         position_x = unknownUnit.Position.X,
                         position_y = unknownUnit.Position.Y,
                         position_z = unknownUnit.Position.Z,
                         spawnMask = 1
-                    };
+                    });
 
-                    await World.Creatures.AddAsync(creature);
+                    var _world = Services.GetService<WorldContext>();
+                    _world.Creatures.AddRange(dbObj);
+                    var changes = await _world.SaveChangesAsync();
                 }
-                await World.SaveChangesAsync();
             }
         }
 
@@ -489,11 +497,28 @@ namespace AmeisenBotX.Plugins.Questing.Database
 
             if (lootType is null or "creatureloot")
             {
-                IQueryable<int>? creatureLoot = cache.GetOrCreate($"creatureloot-{itemId}", t => World.CreatureLootTemplates.Where(t => t.item == itemId).Select(t => t.entry));
-                if (creatureLoot?.Any() == true)
+                var creatureEntityIds = cache.GetOrCreate($"creatureloot-{itemId}", t => { 
+                    var fromLootTemplate = World.CreatureLootTemplates
+                        .Where(t => t.item == itemId)
+                        .Select(t => t.entry)
+                        .ToArray();
+                    if (fromLootTemplate.Any())
+                        return fromLootTemplate;
+
+                    var fromCreatureTemplate = World.CreatureTemplates
+                        .Where(t => t.questItem1 == itemId || t.questItem2 == itemId || t.questItem3 == itemId || t.questItem4 == itemId || t.questItem5 == itemId || t.questItem6 == itemId)
+                        .Select(t=>t.Entry)
+                        .ToArray();
+                    if(fromCreatureTemplate.Any())
+                        return fromCreatureTemplate;
+
+                    return new int[] { };
+                });
+                if (creatureEntityIds?.Any() == true)
                 {
                     lootType = cache.Set($"loottype-{itemId}", "creatureloot");
-                    HuntTargets(objective, creatureLoot);
+                    HuntTargets(objective, creatureEntityIds);
+                    return;
                 }
             }
 
@@ -507,6 +532,33 @@ namespace AmeisenBotX.Plugins.Questing.Database
                 {
                     lootType = cache.Set($"loottype-{itemId}", "worldloot");
                     InteractWithWorldObject(objective, worldLoot);
+                    return;
+                }
+            }
+
+            if(lootType is null or "moveto")
+            {
+                var questid = objective.DbQuestObjective.QuestId;
+                var points = cache.GetOrCreate($"moveto-{objective.DbQuestObjective.QuestId}", m =>
+                {
+                    return World.QuestPoiPoints
+                        .Where(t => t.QuestId == objective.DbQuestObjective.QuestId)
+                        .Select(t => new { Distance = Bot.Player.Position.GetDistance2D(new Vector3(t.X, t.Y, 0)), Point = t })
+                        .OrderBy(t=>t.Distance);
+                });
+
+                if(points?.Any() == true)
+                {
+                    lootType = cache.Set($"loottype-{itemId}", "moveto");
+                    var moveTo = points.First();
+                    var position = new Vector3(moveTo.Point.X, moveTo.Point.Y, 0);
+                    var mapid = cache.GetOrCreate($"mapid-{questid}", m => World.QuestPoi.FirstOrDefault(t => t.QuestId == questid)?.Mapid);
+                    
+                    if (mapid != null)
+                    {
+                        var randomPoint = Bot.PathfindingHandler.MoveAlongSurface(mapid.Value, Bot.Player.Position, position);
+                        Bot.Movement.SetMovementAction(MovementAction.Move, randomPoint);
+                    }
                 }
             }
         }
@@ -625,7 +677,7 @@ namespace AmeisenBotX.Plugins.Questing.Database
 
                     if (Unit == null)
                     { // check the DB
-                        backupLocation = cache.GetOrCreate("", c => World.Creatures
+                        backupLocation = cache.GetOrCreate($"backupLocation-{string.Join('-', targetEntryIds)}", c => World.Creatures
                             .Where(t => targetEntryIds.Contains(t.id))
                             .ToArray()
                             .Select(t => new Vector3(t.position_x, t.position_y, t.position_z))
@@ -676,6 +728,47 @@ namespace AmeisenBotX.Plugins.Questing.Database
             }
 
             objective.Progress = Math.Round(progress / (double)objective.DbQuestObjective.Amount, 2) * 100;
+        }
+
+        public (Vector3 Location, int QuestId, int NpcEntityId) GetNewQuest()
+        {
+            var world = Services.GetRequiredService<WorldContext>();
+            var quests = from quest in world.Quests
+                         join starter in world.CreatureQuestStarters on quest.Id equals starter.QuestId
+                         join creature in world.Creatures on starter.Entry equals creature.id
+                         where quest.Level >= (Bot.Player.Level - 4) // allow stuff a little lower
+                            && quest.MinLevel <= Bot.Player.Level // we meet the minimum level
+                            && quest.PointMapId == (int)Bot.Objects.MapId // same map
+                         select new { quest.PrevQuestId, Location = new Vector3(creature.position_x, creature.position_y, creature.position_z), QuestId = quest.Id, EntityId = creature.id };
+            
+            // get completed quests
+            var completed = Bot.Wow.GetCompletedQuests();
+
+            var orderedQuests = quests
+                .ToArray()
+                // filter out quests we completed AND only keep quests without a previous quest OR a previous quest we completed
+                .Where(t=> !completed.Contains(t.QuestId) && (t.PrevQuestId == 0 || completed.Contains(t.PrevQuestId)))
+                // we need to get the distance
+                .Select(t => new { Distance = Bot.Player.Position.GetDistance(t.Location), t.Location, t.QuestId, t.EntityId })
+                // if we're close but can't see the npc, filter it out
+                .Where(t=> Bot.GetClosestNpcByEntryId(t.EntityId) != null || t.Distance > 30 )
+                .OrderBy(t => t.Distance)
+                .ToArray();
+
+            
+            var skipped = 0;
+            do
+            {
+                var closest = orderedQuests.Skip(skipped).FirstOrDefault();
+                if (closest != null && Bot.Movement.TryGetPath(closest.Location, out _))
+                {
+                    return (closest.Location, closest.QuestId, closest.EntityId);
+                }
+                skipped++;
+
+            } while (orderedQuests.Skip(skipped).Any());
+
+            return (default, default, default);
         }
 
         #region
