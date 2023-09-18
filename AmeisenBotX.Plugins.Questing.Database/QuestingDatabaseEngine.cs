@@ -2,6 +2,7 @@
 using AmeisenBotX.Common.Math;
 using AmeisenBotX.Common.Utils;
 using AmeisenBotX.Core.Engines.Movement.Enums;
+using AmeisenBotX.Core.Engines.Movement.Pathfinding.Objects;
 using AmeisenBotX.Core.Engines.Quest.Objects.Objectives;
 using AmeisenBotX.Core.Engines.Quest.Objects.Quests;
 using AmeisenBotX.Core.Managers.Character.Inventory;
@@ -17,6 +18,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.ComponentModel.Design;
 
 namespace AmeisenBotX.Plugins.Questing.Database
 {
@@ -42,12 +44,46 @@ namespace AmeisenBotX.Plugins.Questing.Database
             RightClickEvent = new TimegatedEvent(TimeSpan.FromMilliseconds(2500));
 
             RegisterEvent("QUEST_PROGRESS", OnQuestProgress);
+            RegisterEvent("TAXIMAP_OPENED", OnTaxiMapOpened);
         }
 
+        private void OnTaxiMapOpened(long arg1, List<string> list)
+        {
+            // get the taxi node count
+            // numNodes = NumTaxiNodes()
+            var nodeCount = LuaToInt("{v:0}=NumTaxiNodes();");
+            for (int i = 1; i <= (nodeCount ?? 0); i++)
+            {
+                // get the connections
+                // type = TaxiNodeGetType(index)
+                var type = LuaToString($"{{v:0}}=TaxiNodeGetType({i});");
+                // get the node location
+                // x,y = TaxiNodePosition(index)
+
+                // get the npc tied to the node
+
+            }
+        }
+
+        private int? LuaToInt(string lua)
+        {
+            if (Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua(lua), out string result))
+                if (int.TryParse(result, out int ret))
+                    return ret;
+            return null;
+        }
+
+        private string? LuaToString(string lua)
+        {
+            if (Bot.Wow.ExecuteLuaAndRead(BotUtils.ObfuscateLua(lua), out string result))
+                return result;
+            return null;
+        }
 
         public void Dispose()
         {
             UnregisterEvent("QUEST_PROGRESS", OnQuestProgress);
+            UnregisterEvent("TAXIMAP_OPENED", OnTaxiMapOpened);
         }
 
         ~QuestingDatabaseEngine()
@@ -80,6 +116,8 @@ namespace AmeisenBotX.Plugins.Questing.Database
 
             services.AddSingleton<IQuestProfile, DBProfile>();
             services.AddSingleton<IQuestEngine>(this);
+            services.AddSingleton(this);
+            services.AddSingleton(cache);
 
             AddDbContext(services, configuration);
 
@@ -137,7 +175,7 @@ namespace AmeisenBotX.Plugins.Questing.Database
         public TimegatedEvent UpdateDatabase { get; }
         public TimegatedEvent RightClickEvent { get; }
 
-        private readonly MemoryCache cache = new(new MemoryCacheOptions());
+        private readonly MemoryCache cache = new(new MemoryCacheOptions() { ExpirationScanFrequency = TimeSpan.FromMinutes(5) });
 
         public void Enter()
         {
@@ -637,6 +675,8 @@ namespace AmeisenBotX.Plugins.Questing.Database
 
         private void HuntTargets(BotQuestObjective objective, IEnumerable<int> targetEntryIds)
         {
+            var questId = objective.DbQuestObjective.QuestId;
+
             Models.DbQuestObjective? obj = objective.DbQuestObjective;
             if (obj?.Type == 0)
             { // objective is to kill
@@ -647,6 +687,7 @@ namespace AmeisenBotX.Plugins.Questing.Database
 
             IWowUnit? Unit = null;
             Vector3 backupLocation = default;
+            SearchAreaEnsamble? searchAreaEnsamble = cache.GetOrCreate($"search-{questId}-{obj.Index}", t => GetSearchArea(questId, obj.Index) ?? default);
 
             if (Bot.Target != null
                 && !Bot.Target.IsDead
@@ -675,7 +716,7 @@ namespace AmeisenBotX.Plugins.Questing.Database
                         .OrderBy(e => e.Position.GetDistance(Bot.Player.Position))
                         .FirstOrDefault();
 
-                    if (Unit == null)
+                    if (Unit == null && searchAreaEnsamble == null)
                     { // check the DB
                         backupLocation = cache.GetOrCreate($"backupLocation-{string.Join('-', targetEntryIds)}", c => World.Creatures
                             .Where(t => targetEntryIds.Contains(t.id))
@@ -699,12 +740,62 @@ namespace AmeisenBotX.Plugins.Questing.Database
                     Bot.Wow.ChangeTarget(Unit.Guid);
                 }
 
-                Bot.CombatClass.AttackTarget();
+                searchAreaEnsamble?.NotifyDetour();
+                if (Unit.Position.GetDistance(Bot.Player.Position) > 40)
+                    Bot.Movement.SetMovementAction(MovementAction.Move, Unit.Position);
+                else
+                    Bot.CombatClass.AttackTarget();
+            }
+            else if (searchAreaEnsamble != null)
+            {
+                if (Bot.Player.Position.GetDistance2D(searchAreaEnsamble.LastSearchPosition) < 4.5f || searchAreaEnsamble.HasAbortedPath() || searchAreaEnsamble.LastSearchPosition == default)
+                {
+                    var currentNode = searchAreaEnsamble.GetNextPosition(Bot);
+                    Bot.Movement.SetMovementAction(MovementAction.Move, currentNode);
+                }
+                else
+                {
+                    //var next = Bot.PathfindingHandler.MoveAlongSurface(0, Bot.Player.Position, searchAreaEnsamble.LastSearchPosition);
+                    Bot.Movement.SetMovementAction(MovementAction.Move, searchAreaEnsamble.LastSearchPosition);
+                }
             }
             else if (backupLocation != default)
             {
+                searchAreaEnsamble?.NotifyDetour();
                 Bot.Movement.SetMovementAction(MovementAction.Move, backupLocation);
             }
+        }
+
+        private SearchAreaEnsamble? GetSearchArea(int questId, int index)
+        {
+            var _world = Services.GetService<WorldContext>();
+            var anotherLookup = (from questPoi in _world.QuestPoi
+                                join poiPoints in _world.QuestPoiPoints
+                                    on new { questPoi.Id, questPoi.QuestId } equals new { poiPoints.Id, poiPoints.QuestId }
+                                where questPoi.QuestId == questId
+                                    && questPoi.ObjIndex == index
+                                select new Vector3(poiPoints.X, poiPoints.Y, 0)).ToList();
+
+            if (anotherLookup.Any())
+            {
+                var adjusted = new List<Vector3>();
+                foreach(var lookup in anotherLookup.ToArray())
+                {
+                    var validZ = new List<float>();
+                    for (int i = 0; i < 1000; i++)
+                    {
+                        var test = Bot.PathfindingHandler.GetPath(0, Bot.Player.Position, lookup.AdjustedZ(i));
+                        if (test.Count() > 1)
+                        {
+                            validZ.Add(i);
+                        }
+                    }
+                    adjusted.Add(lookup.AdjustedZ(validZ.Average()));
+                }
+                return new SearchAreaEnsamble(new List<List<Vector3>> { adjusted  });
+            }
+            else
+                return null;
         }
 
         private void UpdateQuantityProgress(BotQuestObjective objective)
@@ -755,7 +846,6 @@ namespace AmeisenBotX.Plugins.Questing.Database
                 .OrderBy(t => t.Distance)
                 .ToArray();
 
-            
             var skipped = 0;
             do
             {

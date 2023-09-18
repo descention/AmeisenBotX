@@ -10,8 +10,6 @@ namespace AmeisenBotX.Plugins.Questing.Database
 {
     public class BotQuestObjective : IQuestObjective
     {
-        
-
         public DbQuestObjective? DbQuestObjective { get; init; }
         
         public bool Finished => Progress == 100.0;

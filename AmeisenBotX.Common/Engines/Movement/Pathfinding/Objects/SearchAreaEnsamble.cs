@@ -1,9 +1,10 @@
-﻿using AmeisenBotX.Common.Math;
+﻿using AmeisenBotX.Common;
+using AmeisenBotX.Common.Math;
 using System.Collections.Generic;
 
 namespace AmeisenBotX.Core.Engines.Movement.Pathfinding.Objects
 {
-    internal class SearchAreaEnsamble
+    public class SearchAreaEnsamble
     {
         public SearchAreaEnsamble(List<List<Vector3>> searchAreas)
         {
@@ -20,7 +21,7 @@ namespace AmeisenBotX.Core.Engines.Movement.Pathfinding.Objects
 
         private int CurrentSearchArea { get; set; }
 
-        private Vector3 LastSearchPosition { get; set; } = Vector3.Zero;
+        public Vector3 LastSearchPosition { get; private set; } = Vector3.Zero;
 
         public Vector3 GetNextPosition(AmeisenBotInterfaces bot)
         {

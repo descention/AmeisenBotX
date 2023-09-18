@@ -1,4 +1,5 @@
-﻿using AmeisenBotX.Common.Math;
+﻿using AmeisenBotX.Common;
+using AmeisenBotX.Common.Math;
 using System;
 using System.Collections.Generic;
 using System.Linq;

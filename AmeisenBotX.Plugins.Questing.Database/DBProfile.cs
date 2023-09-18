@@ -10,20 +10,18 @@ namespace AmeisenBotX.Plugins.Questing.Database
 {
     public class DBProfile : IQuestProfile
     {
-        public DBProfile(IQuestEngine engine, AmeisenBotInterfaces bot, WorldContext world)
+        public DBProfile(QuestingDatabaseEngine engine, AmeisenBotInterfaces bot, WorldContext world)
         {
             Name = "Database Driven Profile";
             Engine = engine;
-            Bot = bot;
-            World = world;
         }
 
         public Queue<ICollection<IBotQuest>> Quests { get; } = new Queue<ICollection<IBotQuest>>();
 
         public string Name { get; init; }
-        public IQuestEngine Engine { get; }
-        public AmeisenBotInterfaces Bot { get; }
-        public WorldContext World { get; }
+        public QuestingDatabaseEngine Engine { get; }
+
+        IQuestEngine IQuestProfile.Engine => this.Engine;
 
         public override string ToString()
         {
