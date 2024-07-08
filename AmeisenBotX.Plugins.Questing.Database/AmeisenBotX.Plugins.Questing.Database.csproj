@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="7.0.0" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="7.0.0" />
-    <PackageReference Include="ServiceStack.Interfaces" Version="6.10.0" />
+    <PackageReference Include="ServiceStack.Interfaces" Version="8.3.0" />
   </ItemGroup>
 
   <ItemGroup>
